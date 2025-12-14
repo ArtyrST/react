@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <title>Список справ — React</title>
+
+  <!-- React -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #f4f6f8;
+    }
+    .app {
+      max-width: 1000px;
+      margin: auto;
+      padding: 20px;
+    }
+    input, textarea, select, button {
+      padding: 8px;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .task {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+    }
+    .low { border-left: 6px solid green; }
+    .medium { border-left: 6px solid orange; }
+    .high { border-left: 6px solid red; }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 15px 0;
+    }
+    button {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+function App() {
+  const emptyTask = {
+    id: null,
+    title: "",
+    desc: "",
+    datetime: "",
+    tags: "",
+    priority: "medium",
+    project: ""
+  };
+
+  const [tasks, setTasks] = useState([]);
+  const [task, setTask] = useState(emptyTask);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem("tasks"));
+    if (saved) setTasks(saved);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }, [tasks]);
+
+  const saveTask = () => {
+    if (!task.title) return;
+
+    if (task.id) {
+      setTasks(tasks.map(t => t.id === task.id ? task : t));
+    } else {
+      setTasks([...tasks, { ...task, id: Date.now() }]);
+    }
+    setTask(emptyTask);
+  };
+
+  const editTask = (t) => setTask(t);
+
+  const deleteTask = (id) =>
+    setTasks(tasks.filter(t => t.id !== id));
+
+  const filteredTasks = tasks
+    .filter(t => {
+      const q = search.toLowerCase();
+      return (
+        t.title.toLowerCase().includes(q) ||
+        t.desc.toLowerCase().includes(q) ||
+        t.tags.toLowerCase().includes(q) ||
+        t.priority.includes(q)
+      );
+    })
+    .filter(t => {
+      if (filter === "all") return true;
+      const now = new Date();
+      const date = new Date(t.datetime);
+      const diff = (date - now) / (1000 * 60 * 60 * 24);
+
+      if (filter === "day") return diff >= 0 && diff < 1;
+      if (filter === "week") return diff >= 0 && diff <= 7;
+      if (filter === "month") return date.getMonth() === now.getMonth();
+    });
+
+  return (
+    <div className="app">
+      <h1>📝 Список справ</h1>
+
+      <input placeholder="Назва справи"
+        value={task.title}
+        onChange={e => setTask({...task, title: e.target.value})} />
+
+      <input type="datetime-local"
+        value={task.datetime}
+        onChange={e => setTask({...task, datetime: e.target.value})} />
+
+      <textarea placeholder="Опис"
+        value={task.desc}
+        onChange={e => setTask({...task, desc: e.target.value})} />
+
+      <input placeholder="Теги (через кому)"
+        value={task.tags}
+        onChange={e => setTask({...task, tags: e.target.value})} />
+
+      <select value={task.priority}
+        onChange={e => setTask({...task, priority: e.target.value})}>
+        <option value="low">Низький</option>
+        <option value="medium">Середній</option>
+        <option value="high">Високий</option>
+      </select>
+
+      <input placeholder="Проєкт"
+        value={task.project}
+        onChange={e => setTask({...task, project: e.target.value})} />
+
+      <button onClick={saveTask}>
+        {task.id ? "Зберегти зміни" : "Додати справу"}
+      </button>
+
+      <div className="controls">
+        <select onChange={e => setFilter(e.target.value)}>
+          <option value="all">Усі</option>
+          <option value="day">На день</option>
+          <option value="week">На тиждень</option>
+          <option value="month">На місяць</option>
+        </select>
+
+        <input placeholder="Пошук..."
+          onChange={e => setSearch(e.target.value)} />
+      </div>
+
+      {filteredTasks.map(t => (
+        <div key={t.id} className={`task ${t.priority}`}>
+          <h3>{t.title}</h3>
+          <small>{t.datetime}</small>
+          <p>{t.desc}</p>
+          <p>🏷 {t.tags}</p>
+          <p>📁 Проєкт: {t.project || "немає"}</p>
+
+          <button onClick={() => editTask(t)}>✏️ Редагувати</button>
+          <button onClick={() => deleteTask(t.id)}>🗑 Видалити</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+
+</body>
+</html>
